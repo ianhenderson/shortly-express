@@ -27,10 +27,36 @@ app.get('/create', function(req, res) {
   res.render('index');
 });
 
+app.get('/signup', function(req, res) {
+  res.render('signup');
+});
+
+app.get('/login', function(req, res) {
+  res.render('login');
+});
+
 app.get('/links', function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
-  })
+  });
+});
+
+app.post('/signup', function(req, res){
+  new User(req.body).save().then(function(newuser){
+    console.log('New user added: ' + newuser);
+    res.send(201);
+  });
+});
+
+app.post('/login', function(req, res){
+  new User(req.body).fetch().then(function(found){
+    console.log('User found: ' + found);
+    if (!found){
+      res.redirect('login');
+    } else {
+      res.redirect('index');
+    }
+  });
 });
 
 app.post('/links', function(req, res) {
