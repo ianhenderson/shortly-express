@@ -10,6 +10,8 @@ var Link = require('./app/models/link');
 var Click = require('./app/models/click');
 
 var app = express();
+app.use(express.cookieParser());
+app.use(express.session({secret: 'anystring'}));
 
 app.configure(function() {
   app.set('views', __dirname + '/views');
@@ -19,12 +21,22 @@ app.configure(function() {
   app.use(express.static(__dirname + '/public'));
 });
 
+var checkUser = function(req, res, pathname){
+  new User({sessionId: req.cookies.sessionId}).fetch().then(function(user){
+    if (user){
+      res.render(pathname);
+    } else {
+      res.redirect('/login');
+    }
+  });
+};
+
 app.get('/', function(req, res) {
-  res.render('index');
+  checkUser(req, res, 'index');
 });
 
 app.get('/create', function(req, res) {
-  res.render('index');
+  checkUser(req, res, 'index');
 });
 
 app.get('/signup', function(req, res) {
@@ -44,7 +56,7 @@ app.get('/links', function(req, res) {
 app.post('/signup', function(req, res){
   new User(req.body).save().then(function(newuser){
     console.log('New user added: ' + newuser);
-    res.send(201);
+    res.redirect('/login');
   });
 });
 
@@ -52,9 +64,15 @@ app.post('/login', function(req, res){
   new User(req.body).fetch().then(function(found){
     console.log('User found: ' + found);
     if (!found){
-      res.redirect('login');
+      res.redirect('/login');
     } else {
-      res.redirect('index');
+      //generate hashed sessionId
+      var hash = 'pqoieurpowqieur';
+      found.set({sessionId: hash}).save().then(function(user){
+        res.cookie('sessionId', hash);
+        console.log('Session saved for user: ' + user);
+        res.redirect('/index');
+      });
     }
   });
 });
