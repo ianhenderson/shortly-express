@@ -1,6 +1,7 @@
 var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
+var bcrypt = require('bcrypt');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -54,26 +55,41 @@ app.get('/links', function(req, res) {
 });
 
 app.post('/signup', function(req, res){
-  new User(req.body).save().then(function(newuser){
-    console.log('New user added: ' + newuser);
-    res.redirect('/login');
+  bcrypt.hash(req.body.password, 8, function(err, hash){
+    new User({username: req.body.username, password: hash}).save().then(function(newuser){
+      res.redirect('/login');
+    });
   });
 });
 
 app.post('/login', function(req, res){
-  new User(req.body).fetch().then(function(found){
-    console.log('User found: ' + found);
+  new User({username: req.body.username}).fetch().then(function(found){
     if (!found){
       res.redirect('/login');
     } else {
-      //generate hashed sessionId
-      var hash = 'pqoieurpowqieur';
-      found.set({sessionId: hash}).save().then(function(user){
-        res.cookie('sessionId', hash);
-        console.log('Session saved for user: ' + user);
-        res.redirect('/index');
+      bcrypt.compare(req.body.password, found.get('password'), function(err, resp){
+        if (!resp){
+          res.redirect('/login');
+        } else {
+          bcrypt.hash(Math.random().toString(), 8, function(err,hash){
+            found.set({sessionId: hash}).save().then(function(user){
+              res.cookie('sessionId', hash);
+              res.redirect('/index');
+            });
+          });
+        }
       });
     }
+  });
+});
+
+app.post('/logout', function(req, res){
+  var token = req.cookies.sessionId;
+  new User({sessionId: token}).fetch().then(function(user){
+    user.set({sessionId: null}).save().then(function(user){
+      res.cookie('sessionId', null);
+      res.redirect('/');
+    });
   });
 });
 
